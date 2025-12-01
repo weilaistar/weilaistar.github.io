@@ -132,6 +132,13 @@
 </ul>
 <h2 id="内核空间的映射与解映射"><a href="#内核空间的映射与解映射" class="headerlink" title="内核空间的映射与解映射"></a>内核空间的映射与解映射</h2><h3 id="1-ioremap"><a href="#1-ioremap" class="headerlink" title="1. ioremap()"></a>1. ioremap()</h3><p><strong>ioremap()</strong> 函数用于将物理内存映射到内核地址空间，是专门用于处理设备 I&#x2F;O 内存的函数。</p>
 <p><strong>为什么要专门为设备 I&#x2F;O 内存设计 ioremap() 函数？</strong><br>CPU 在设计上将物理 RAM 和设备 I&#x2F;O 内存（Memory-Mapped I&#x2F;O, MMIO）视为不同的资源。这些 I&#x2F;O 内存区域位于系统总线上，通常不能直接使用常规的内存访问指令（如读取 RAM 的指令）来访问，并且它们具有特殊的内存属性。<br>因此，Linux 内核提供了 ioremap() 函数来正确地映射这些 I&#x2F;O 内存区域，使内核能够安全地访问设备寄存器和缓冲区。</p>
+<p><strong>工作原理</strong></p>
+<ul>
+<li><strong>创建页表映射</strong>： ioremap() 的主要工作是创建新的页表条目（PTE），将指定的设备物理地址映射到一段连续的内核虚拟地址上。</li>
+<li><strong>设置特殊属性</strong>： 在建立映射时，它还会告诉 CPU 和内存管理单元 (MMU) 如下关键信息：</li>
+<li><strong>非可缓存 (Non-Cacheable)</strong>： 这是最重要的。设备寄存器或 I&#x2F;O 内存的状态是经常变化的，CPU 不能对这些区域进行缓存。如果缓存，CPU 可能会读取到旧的、缓存中的值，而不是设备当前最新的状态，导致驱动程序错误。</li>
+<li><strong>写合并 (Write-Combining) 或写穿透 (Write-Through)</strong>： 根据具体的 I&#x2F;O 需求设置其他内存访问属性。</li>
+</ul>
 <p>其函数原型如下：</p>
 <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> *<span class="title function_">ioremap</span><span class="params">(<span class="type">unsigned</span> <span class="type">long</span> phys_addr, <span class="type">unsigned</span> <span class="type">long</span> size)</span>;</span><br></pre></td></tr></table></figure>
 <ul>
