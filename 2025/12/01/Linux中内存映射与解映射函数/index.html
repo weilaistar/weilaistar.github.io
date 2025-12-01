@@ -132,12 +132,14 @@
 <li><strong>fd</strong>：要映射的文件描述符。</li>
 <li><strong>offset</strong>：文件映射的起始偏移量。</li>
 </ul>
+<p>其返回值类型是void*，指向映射区域的起始虚拟地址，这就意味着调用进程可以通过这个地址直接访问映射的内存区域。</p>
 <h3 id="munmap"><a href="#munmap" class="headerlink" title="munmap()"></a>munmap()</h3><p><strong>munmap()</strong> 函数用于解除之前通过 mmap() 映射的内存区域。其函数原型如下：</p>
 <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">munmap</span><span class="params">(<span class="type">void</span> *addr, <span class="type">size_t</span> length)</span>;</span><br></pre></td></tr></table></figure>
 <ul>
 <li><strong>addr</strong>：要解除映射的地址。</li>
 <li><strong>length</strong>：要解除映射的长度。</li>
 </ul>
+<p>其返回值类型是int，成功时返回0，失败时返回-1。</p>
 <h2 id="内核空间的映射与解映射"><a href="#内核空间的映射与解映射" class="headerlink" title="内核空间的映射与解映射"></a>内核空间的映射与解映射</h2><h3 id="ioremap"><a href="#ioremap" class="headerlink" title="ioremap()"></a>ioremap()</h3><p><strong>ioremap()</strong> 函数用于将物理内存映射到内核地址空间，是专门用于处理设备 I&#x2F;O 内存的函数。</p>
 <p><strong>为什么要专门为设备 I&#x2F;O 内存设计 ioremap() 函数？</strong><br>CPU 在设计上将物理 RAM 和设备 I&#x2F;O 内存（Memory-Mapped I&#x2F;O, MMIO）视为不同的资源。这些 I&#x2F;O 内存区域位于系统总线上，通常不能直接使用常规的内存访问指令（如读取 RAM 的指令）来访问，并且它们具有特殊的内存属性。<br>因此，Linux 内核提供了 ioremap() 函数来正确地映射这些 I&#x2F;O 内存区域，使内核能够安全地访问设备寄存器和缓冲区。</p>
 <p><strong>工作原理</strong></p>
@@ -157,6 +159,7 @@
 <li><strong>phys_addr</strong>：要映射的物理地址。</li>
 <li><strong>size</strong>：映射的长度。</li>
 </ul>
+<p>其返回值类型为void __iomem *，指向映射区域的起始虚拟地址。__iomem 是一个类型标签，用于告诉编译器和开发人员，这个指针指向的是 I&#x2F;O 内存，而不是普通的 RAM 内存。</p>
 <h3 id="iounmap"><a href="#iounmap" class="headerlink" title="iounmap()"></a>iounmap()</h3><p><strong>iounmap()</strong> 函数用于解除之前通过 ioremap() 映射的内存区域。其函数原型如下：</p>
 <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">iounmap</span><span class="params">(<span class="type">void</span> *addr)</span>;</span><br></pre></td></tr></table></figure>
 <ul>
