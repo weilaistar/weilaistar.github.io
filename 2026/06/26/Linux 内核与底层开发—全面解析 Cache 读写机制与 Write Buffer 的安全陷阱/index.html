@@ -1,0 +1,160 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"><meta name="author" content="weilaistar"><meta name="renderer" content="webkit"><meta name="copyright" content="weilaistar"><meta name="keywords" content="Hexo"><meta name="description" content=""><meta name="Cache-Control" content="no-cache"><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"><title>Weilaistar's Blog</title><link rel="stylesheet" href="/css/style.css?v=2018.7.9"><link rel="stylesheet" href="/css/animation.css?v=2018.7.9"><link rel="icon" href="/img/assets/favicon.ico"><link rel="stylesheet" href="https://cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.min.css?version=1.5.6"><!-- scripts--><script>(function( w ){
+  "use strict";
+  // rel=preload support test
+  if( !w.loadCSS ){
+    w.loadCSS = function(){};
+  }
+  // define on the loadCSS obj
+  var rp = loadCSS.relpreload = {};
+  // rel=preload feature support test
+  // runs once and returns a function for compat purposes
+  rp.support = (function(){
+    var ret;
+    try {
+      ret = w.document.createElement( "link" ).relList.supports( "preload" );
+    } catch (e) {
+      ret = false;
+    }
+    return function(){
+      return ret;
+    };
+  })();
+
+  // if preload isn't supported, get an asynchronous load by using a non-matching media attribute
+  // then change that media back to its intended value on load
+  rp.bindMediaToggle = function( link ){
+    // remember existing media attr for ultimate state, or default to 'all'
+    var finalMedia = link.media || "all";
+
+    function enableStylesheet(){
+      link.media = finalMedia;
+    }
+
+    // bind load handlers to enable media
+    if( link.addEventListener ){
+      link.addEventListener( "load", enableStylesheet );
+    } else if( link.attachEvent ){
+      link.attachEvent( "onload", enableStylesheet );
+    }
+
+    // Set rel and non-applicable media type to start an async request
+    // note: timeout allows this to happen async to let rendering continue in IE
+    setTimeout(function(){
+      link.rel = "stylesheet";
+      link.media = "only x";
+    });
+    // also enable media after 3 seconds,
+    // which will catch very old browsers (android 2.x, old firefox) that don't support onload on link
+    setTimeout( enableStylesheet, 3000 );
+  };
+
+  // loop through link elements in DOM
+  rp.poly = function(){
+    // double check this to prevent external calls from running
+    if( rp.support() ){
+      return;
+    }
+    var links = w.document.getElementsByTagName( "link" );
+    for( var i = 0; i < links.length; i++ ){
+      var link = links[ i ];
+      // qualify links to those with rel=preload and as=style attrs
+      if( link.rel === "preload" && link.getAttribute( "as" ) === "style" && !link.getAttribute( "data-loadcss" ) ){
+        // prevent rerunning on link
+        link.setAttribute( "data-loadcss", true );
+        // bind listeners to toggle media back
+        rp.bindMediaToggle( link );
+      }
+    }
+  };
+
+  // if unsupported, run the polyfill
+  if( !rp.support() ){
+    // run once at least
+    rp.poly();
+
+    // rerun poly on an interval until onload
+    var run = w.setInterval( rp.poly, 500 );
+    if( w.addEventListener ){
+      w.addEventListener( "load", function(){
+        rp.poly();
+        w.clearInterval( run );
+      } );
+    } else if( w.attachEvent ){
+      w.attachEvent( "onload", function(){
+        rp.poly();
+        w.clearInterval( run );
+      } );
+    }
+  }
+
+
+  // commonjs
+  if( typeof exports !== "undefined" ){
+    exports.loadCSS = loadCSS;
+  }
+  else {
+    w.loadCSS = loadCSS;
+  }
+}( typeof global !== "undefined" ? global : this ) );</script><script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js" defer></script><script src="/js/main.js?v=2018.7.9" defer></script><!-- fancybox--><link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.2.5/jquery.fancybox.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'"><script src="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.2.5/jquery.fancybox.min.js" defer></script><!-- busuanzi--><script async src="//dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script><meta name="generator" content="Hexo 8.1.1"></head><body><section class="profile-close" id="cxo-profile"><div class="profile-avatar"><i class="fa fa-caret-left"></i><img src="/img/OIP.png"></div><!--.profile-saying
+  i.fa.fa-comment
+  .saying--><div class="cxo-profile-inner"><div class="profile-name">weilaistar</div><div class="profile-signature">for me</div><div class="read-progress"></div></div></section><header id="cxo-intro" style="height: 70vh;background-image: url(/img/intro/index-bg.png);"><nav id="cxo-intro-nav"><section><div class="intro-nav-title"><a href="/">Weilaistar's Blog</a></div><div class="intro-nav-label-box"><a href="/">Home</a><a href="/about/">About</a><a href="/archives/">Archives</a><a href="/tags/">Tags</a></div><i class="fa fa-bars intro-nav-menu"><div class="intro-nav-drop"><a href="/">Home</a><a href="/about/">About</a><a href="/archives/">Archives</a><a href="/tags/">Tags</a></div></i><div class="clear"></div></section></nav><h1 class="post-title"></h1><div class="post-intros"><div class="post-intro-meta"><span class="post-intro-time"><i class="post-intro-calendar fa fa-calendar"></i><span>2026-06-26</span></span></div></div></header><article class="cxo-up" id="cxo-content-outer"><section id="cxo-content-inner"><article class="article-entry" id="post"><h1 id="Linux-内核与底层开发：全面解析-Cache-读写机制与-Write-Buffer-的安全陷阱"><a href="#Linux-内核与底层开发：全面解析-Cache-读写机制与-Write-Buffer-的安全陷阱" class="headerlink" title="Linux 内核与底层开发：全面解析 Cache 读写机制与 Write Buffer 的安全陷阱"></a>Linux 内核与底层开发：全面解析 Cache 读写机制与 Write Buffer 的安全陷阱</h1><p>在嵌入式 Linux 驱动开发以及计算机体系结构中，<strong>Cache（缓存）</strong> 与 <strong>Buffer（写缓冲区）</strong> 的管理是决定系统性能与稳定性的关键。如果驱动开发者对内存映射（Memory Mapping）时的 Cache 策略理解不深，极易引入数据不一致或外设异常等恶性 Bug。</p>
+<p>本文结合处理器底层硬件行为，深入探讨 Cache 的读写机制，并对<strong>写通（Write Through）</strong>、**写回（Write Back）**以及 <strong>Write Buffer 的写合并</strong>进行严谨解析。</p>
+<hr>
+<h2 id="一、-读取内存（Read-Process）与局部性原理"><a href="#一、-读取内存（Read-Process）与局部性原理" class="headerlink" title="一、 读取内存（Read Process）与局部性原理"></a>一、 读取内存（Read Process）与局部性原理</h2><p>当 CPU 发起对某一内存虚拟地址 <code>addr</code> 的读操作时，硬件 MMU 与 Cache 控制器将触发以下处理链路：</p>
+<ol>
+<li><strong>Cache 命中（Cache Hit）</strong><br>Cache 控制器通过地址标签（Tag）判断该地址的数据已缓存于 Cache 中，则直接将数据返回给 CPU。该操作完全在高速 SRAM 中完成，延迟极低。</li>
+<li><strong>Cache 未命中（Cache Miss）与行填充（Line Fill）</strong><br>若数据不在 Cache 中，CPU 必须转向慢速的主存（DDR）发起读请求。<strong>此时硬件的行为是批量式的：</strong> 它并不会仅读取 CPU 请求的单个字节，而是以 <strong>Cache Line（缓存行，通常为 32 字节或 64 字节）</strong> 为最小单位，将该地址所在整行的数据全部加载到 Cache 中。</li>
+</ol>
+<h3 id="核心物理依据"><a href="#核心物理依据" class="headerlink" title="核心物理依据"></a>核心物理依据</h3><p>这一机制基于计算机体系结构中的<strong>空间局部性原理（Spatial Locality）</strong>。硬件上通过一次性预读相邻地址的数据，确保 CPU 在接下来的周期内执行连续代码或访问连续内存（如结构体、数组）时，能够实现高概率的 Cache 命中。</p>
+<hr>
+<h2 id="二、-写入内存（Write-Process）的两大核心策略"><a href="#二、-写入内存（Write-Process）的两大核心策略" class="headerlink" title="二、 写入内存（Write Process）的两大核心策略"></a>二、 写入内存（Write Process）的两大核心策略</h2><p>由于主存（DDR）的写入速度远慢于 CPU 的处理能力，为了不让写操作拖慢流水线，处理器架构设计了两种核心的写入策略：</p>
+<h3 id="1-写通策略（Write-Through）"><a href="#1-写通策略（Write-Through）" class="headerlink" title="1. 写通策略（Write Through）"></a>1. 写通策略（Write Through）</h3><ul>
+<li><strong>基本机制</strong>：CPU 在更新 Cache 的同时，硬件会同步将数据写入物理内存中。</li>
+<li><strong>物理特性</strong>：Cache 和内存中的数据在任何时刻都保持绝对的一致性。这种机制逻辑简单、数据安全，但由于每次写入都要受限于慢速内存的带宽，整体执行效率较低。</li>
+</ul>
+<h4 id="💡-硬件优化：引入写缓冲区（Write-Buffer）"><a href="#💡-硬件优化：引入写缓冲区（Write-Buffer）" class="headerlink" title="💡 硬件优化：引入写缓冲区（Write Buffer）"></a>💡 硬件优化：引入写缓冲区（Write Buffer）</h4><p>为了缓解写通策略的性能瓶颈，现代处理器在 Cache 和内存之间增加了一级硬件 FIFO 队列，即 <strong>Write Buffer（写缓冲区）</strong>。</p>
+<ul>
+<li>CPU 将数据写入 Cache 后，Cache 控制器将写请求丢给 Write Buffer 即可返回，由 Write Buffer 在后台异步将数据移入内存。</li>
+<li><strong>写合并功能（Write Combining）</strong>：部分高级 Write Buffer 具备合并连续小块写操作的能力。例如，CPU 连续执行 4 次单字节（Byte）的写操作，写入连续的 4 字节空间。Write Buffer 会将这 4 次零碎的总线请求**合并为一次 32 位字（Word）**的传输指令，从而极大优化了总线吞吐量。</li>
+</ul>
+<h4 id="⚠️-严谨避坑：I-O-寄存器的安全陷阱"><a href="#⚠️-严谨避坑：I-O-寄存器的安全陷阱" class="headerlink" title="⚠️ 严谨避坑：I&#x2F;O 寄存器的安全陷阱"></a>⚠️ 严谨避坑：I&#x2F;O 寄存器的安全陷阱</h4><p>写合并和缓冲机制对普通的物理内存（如 RAM、LCD 的显存区域）是非常高效的。然而，<strong>对于外设的 I&#x2F;O 寄存器空间，必须绝对禁止启用 Buffer 功能（即设置为 Non-buffered）</strong>。</p>
+<ul>
+<li><strong>原因</strong>：外设寄存器的写入通常具有特定的时序、顺序和次数依赖（例如：连续写入 4 次特定数据代表触发某种硬件状态机）。如果启用了 Buffer，这 4 次操作被硬件合并为 1 次，或者在缓冲区中颠倒了写入时序，将导致外设无法正常工作，甚至引发不可预知的硬件死锁。</li>
+</ul>
+<h3 id="2-写回策略（Write-Back）"><a href="#2-写回策略（Write-Back）" class="headerlink" title="2. 写回策略（Write Back）"></a>2. 写回策略（Write Back）</h3><ul>
+<li><strong>基本机制</strong>：CPU 写入数据时，<strong>仅更新 Cache</strong>，硬件不会同步向物理内存发起写入请求。此时，Cache 与物理内存中的数据存在不一致。</li>
+<li><strong>脏位标记（Dirty Bit）</strong>：为了追踪数据的更新状态，被修改过的该行 Cache Line 就会在硬件上被标记为**“脏（Dirty）”**。</li>
+<li><strong>刷回机制（Flush&#x2F;Evict）</strong>：只有当发生 Cache 替换（由于空间不足，该 Cache Line 需要被新数据覆盖），或者软件主动执行 Cache 清洗指令时，硬件才会检查脏位。若检测为“脏”，则将整行数据一次性刷回（Flush）主存，随后清除脏位。</li>
+<li><strong>物理特性</strong>：写回策略的执行效率极高，它将多次对同一局部内存的修改合并在 Cache 中，最小化了对物理主存的访问频率。其代价是硬件逻辑复杂，且在突发断电时存在数据丢失的风险。</li>
+</ul>
+<hr>
+<h2 id="三、-总结：驱动开发中的页表属性配置原则"><a href="#三、-总结：驱动开发中的页表属性配置原则" class="headerlink" title="三、 总结：驱动开发中的页表属性配置原则"></a>三、 总结：驱动开发中的页表属性配置原则</h2><p>在编写 Linux 块设备、网络设备或字符设备驱动时，针对通过 <code>ioremap</code> 或内核页表配置的内存区域，需严格遵循以下硬件属性原则：</p>
+<table>
+<thead>
+<tr>
+<th align="left">内存区域类型</th>
+<th align="left">推荐 Cache &#x2F; Buffer 策略</th>
+<th align="left">原因说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>常规数据&#x2F;代码段 (RAM)</strong></td>
+<td align="left"><strong>Write Back（写回）</strong></td>
+<td align="left">追求极致的读写性能，完美利用局部性原理。</td>
+</tr>
+<tr>
+<td align="left"><strong>显存 &#x2F; DMA 缓冲区</strong></td>
+<td align="left"><strong>Write Through + Buffer（写通+缓冲）</strong></td>
+<td align="left">确保数据尽快可见，同时利用 Write Buffer 的写合并提升大吞吐量写入效率。</td>
+</tr>
+<tr>
+<td align="left"><strong>外设寄存器 (I&#x2F;O Space)</strong></td>
+<td align="left"><strong>Strictly Non-cacheable &amp; Non-buffered</strong></td>
+<td align="left">必须关闭 Cache 与 Buffer。确保 CPU 的读写操作直达硬件物理引脚，严格保证时序与次数的准确性。</td>
+</tr>
+</tbody></table>
+<hr>
+<blockquote>
+<p><strong>结语</strong>：<br>在现代高性能处理器中，内核通过精细配置页表的 Cacheable 与 Bufferable 属性，来平衡数据一致性与系统性能。作为底层开发者，深刻理解每一次总线提交背后的硬件行为，是编写高稳定驱动程序的基石。</p>
+</blockquote>
+</article><!-- lincense--><div class="license-wrapper"><p> <span>Author:  </span><a href="https://weilaistar.github.io">weilaistar</a></p><p> <span>Link:  </span><a href="https://weilaistar.github.io/2026/06/26/Linux%20%E5%86%85%E6%A0%B8%E4%B8%8E%E5%BA%95%E5%B1%82%E5%BC%80%E5%8F%91%E2%80%94%E5%85%A8%E9%9D%A2%E8%A7%A3%E6%9E%90%20Cache%20%E8%AF%BB%E5%86%99%E6%9C%BA%E5%88%B6%E4%B8%8E%20Write%20Buffer%20%E7%9A%84%E5%AE%89%E5%85%A8%E9%99%B7%E9%98%B1/">https://weilaistar.github.io/2026/06/26/Linux%20%E5%86%85%E6%A0%B8%E4%B8%8E%E5%BA%95%E5%B1%82%E5%BC%80%E5%8F%91%E2%80%94%E5%85%A8%E9%9D%A2%E8%A7%A3%E6%9E%90%20Cache%20%E8%AF%BB%E5%86%99%E6%9C%BA%E5%88%B6%E4%B8%8E%20Write%20Buffer%20%E7%9A%84%E5%AE%89%E5%85%A8%E9%99%B7%E9%98%B1/</a></p><p> <span>Copyright:  </span><span>All articles in this blog are licensed under <a rel="license noopener" target="_blank" href="https://creativecommons.org/licenses/by-nc-nd/3.0">CC BY-NC-SA 3.0</a> unless stating additionally.</span></p></div><div class="post-paginator"><a class="nextSlogan" href="/2025/12/03/Linux%E5%B9%B3%E5%8F%B0%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E6%A1%86%E6%9E%B6%E6%B5%85%E6%9E%90/" title="Linux平台设备驱动框架浅析"><span>NextPost ></span><br><span class="nextTitle">Linux平台设备驱动框架浅析</span></a><div class="clear"></div></div><div id="comment"></div></section></article><footer id="cxo-footer-outer"><div id="cxo-footer-inner"><p class="footer-container"><span>Site by </span><a target="_blank" rel="noopener" href="http://hexo.io"><span>Hexo</span></a><span> | theme </span><a target="_blank" rel="noopener" href="https://github.com/Longlongyu/hexo-theme-Cxo"><span>Cxo</span></a></p><i class="fa fa-user"> </i><span id="busuanzi_value_site_uv"></span><span> | </span><i class="fa fa-eye"> </i><span id="busuanzi_value_site_pv"></span></div></footer><!-- catelog--><div class="toc-wrapper" style="top: 70vh;"><div class="toc-catalog"><i class="fa fa-list"> </i><span>CATALOG</span></div><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Linux-%E5%86%85%E6%A0%B8%E4%B8%8E%E5%BA%95%E5%B1%82%E5%BC%80%E5%8F%91%EF%BC%9A%E5%85%A8%E9%9D%A2%E8%A7%A3%E6%9E%90-Cache-%E8%AF%BB%E5%86%99%E6%9C%BA%E5%88%B6%E4%B8%8E-Write-Buffer-%E7%9A%84%E5%AE%89%E5%85%A8%E9%99%B7%E9%98%B1"><span class="toc-number">1.</span> <span class="toc-text">Linux 内核与底层开发：全面解析 Cache 读写机制与 Write Buffer 的安全陷阱</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81-%E8%AF%BB%E5%8F%96%E5%86%85%E5%AD%98%EF%BC%88Read-Process%EF%BC%89%E4%B8%8E%E5%B1%80%E9%83%A8%E6%80%A7%E5%8E%9F%E7%90%86"><span class="toc-number">1.1.</span> <span class="toc-text">一、 读取内存（Read Process）与局部性原理</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E7%89%A9%E7%90%86%E4%BE%9D%E6%8D%AE"><span class="toc-number">1.1.1.</span> <span class="toc-text">核心物理依据</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81-%E5%86%99%E5%85%A5%E5%86%85%E5%AD%98%EF%BC%88Write-Process%EF%BC%89%E7%9A%84%E4%B8%A4%E5%A4%A7%E6%A0%B8%E5%BF%83%E7%AD%96%E7%95%A5"><span class="toc-number">1.2.</span> <span class="toc-text">二、 写入内存（Write Process）的两大核心策略</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E5%86%99%E9%80%9A%E7%AD%96%E7%95%A5%EF%BC%88Write-Through%EF%BC%89"><span class="toc-number">1.2.1.</span> <span class="toc-text">1. 写通策略（Write Through）</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%F0%9F%92%A1-%E7%A1%AC%E4%BB%B6%E4%BC%98%E5%8C%96%EF%BC%9A%E5%BC%95%E5%85%A5%E5%86%99%E7%BC%93%E5%86%B2%E5%8C%BA%EF%BC%88Write-Buffer%EF%BC%89"><span class="toc-number">1.2.1.1.</span> <span class="toc-text">💡 硬件优化：引入写缓冲区（Write Buffer）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E2%9A%A0%EF%B8%8F-%E4%B8%A5%E8%B0%A8%E9%81%BF%E5%9D%91%EF%BC%9AI-O-%E5%AF%84%E5%AD%98%E5%99%A8%E7%9A%84%E5%AE%89%E5%85%A8%E9%99%B7%E9%98%B1"><span class="toc-number">1.2.1.2.</span> <span class="toc-text">⚠️ 严谨避坑：I&#x2F;O 寄存器的安全陷阱</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%86%99%E5%9B%9E%E7%AD%96%E7%95%A5%EF%BC%88Write-Back%EF%BC%89"><span class="toc-number">1.2.2.</span> <span class="toc-text">2. 写回策略（Write Back）</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81-%E6%80%BB%E7%BB%93%EF%BC%9A%E9%A9%B1%E5%8A%A8%E5%BC%80%E5%8F%91%E4%B8%AD%E7%9A%84%E9%A1%B5%E8%A1%A8%E5%B1%9E%E6%80%A7%E9%85%8D%E7%BD%AE%E5%8E%9F%E5%88%99"><span class="toc-number">1.3.</span> <span class="toc-text">三、 总结：驱动开发中的页表属性配置原则</span></a></li></ol></li></ol></div><!-- top--><i class="fa fa-arrow-up close" id="go-up" aria-hidden="true"></i></body></html>
