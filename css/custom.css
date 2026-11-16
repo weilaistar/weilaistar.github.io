@@ -1,0 +1,328 @@
+/* ============================================================
+   Weilaistar · 自定义样式（Linux / USTC 主题增强）
+   加载于 style.css / animation.css 之后，用于覆盖与增强。
+   ============================================================ */
+
+/* ---------- 终端等宽字体 ---------- */
+@font-face {
+  font-family: 'SourceCodePro';
+  src: url('../font/SourceCodePro-Regular.ttf.woff2') format('woff2'),
+       url('../font/SourceCodePro-Regular.ttf.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --term-green: #4af626;
+  --term-green-soft: #c8f7c5;
+  --term-cyan: #2ac3ff;
+  --ustc-blue: #0a7ec4;
+  --ustc-blue-soft: #7fd4ff;
+  --bg-deep: #05080c;
+}
+
+/* ---------- 首屏 Header：暗色终端风 ---------- */
+#cxo-intro {
+  background-color: var(--bg-deep);
+}
+
+/* 矩阵雨画布 */
+#cxo-intro > canvas#bg-fx {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* 暗色渐变 + 扫描线覆盖层（保证文字可读性） */
+#cxo-intro::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.10) 0px,
+      rgba(0, 0, 0, 0.10) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    radial-gradient(ellipse at 50% 30%, rgba(0, 0, 0, 0.10) 0%, rgba(4, 8, 12, 0.86) 100%);
+}
+
+/* 让文字与导航浮在覆盖层之上 */
+#cxo-intro > nav,
+#cxo-intro > h1,
+#cxo-intro > .terminal-subtitle,
+#cxo-intro > .hero-badges,
+#cxo-intro > .intro-social,
+#cxo-intro > .post-intros {
+  position: relative;
+  z-index: 2;
+}
+
+/* 主标题：霓虹终端风 */
+#cxo-intro > h1.site-title {
+  font-family: 'SourceCodePro', Consolas, 'Courier New', monospace;
+  font-size: clamp(1.9rem, 6vw, 3.4rem);
+  font-weight: 700;
+  color: #eafff0;
+  text-decoration: none;
+  letter-spacing: 1px;
+  text-shadow:
+    0 0 12px rgba(74, 246, 38, 0.55),
+    0 0 42px rgba(42, 195, 255, 0.35);
+}
+
+/* 打字机字幕 */
+.terminal-subtitle {
+  width: 100%;
+  text-align: center;
+  margin-top: 0.6rem;
+  font-family: 'SourceCodePro', Consolas, monospace;
+  font-size: clamp(1rem, 2.4vw, 1.35rem);
+  color: var(--term-green-soft);
+  text-shadow: 0 0 10px rgba(74, 246, 38, 0.55);
+  min-height: 1.6em;
+}
+.terminal-subtitle .term-prompt {
+  color: var(--term-green);
+  margin-right: 0.4rem;
+}
+.terminal-subtitle .term-cursor {
+  display: inline-block;
+  margin-left: 0.15rem;
+  color: var(--term-green);
+  animation: term-blink 1s steps(1) infinite;
+}
+@keyframes term-blink {
+  50% { opacity: 0; }
+}
+
+/* 徽章行 */
+.hero-badges {
+  width: 100%;
+  text-align: center;
+  margin-top: 1.4rem;
+}
+.hero-badges .badge {
+  display: inline-block;
+  margin: 0.35rem 0.45rem;
+  padding: 0.45rem 1.05rem;
+  font-family: 'SourceCodePro', Consolas, monospace;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  border: 1px solid;
+  border-radius: 2rem;
+  color: #fff;
+  transition: all 0.3s ease;
+}
+.hero-badges .badge-linux {
+  border-color: var(--term-green);
+  color: var(--term-green) !important;
+  background: rgba(74, 246, 38, 0.10);
+}
+.hero-badges .badge-linux:hover {
+  background: rgba(74, 246, 38, 0.28);
+  box-shadow: 0 0 18px rgba(74, 246, 38, 0.75);
+  transform: translateY(-2px);
+}
+.hero-badges .badge-ustc {
+  border-color: var(--ustc-blue-soft);
+  color: var(--ustc-blue-soft) !important;
+  background: rgba(10, 126, 196, 0.14);
+}
+.hero-badges .badge-ustc:hover {
+  background: rgba(10, 126, 196, 0.30);
+  box-shadow: 0 0 18px rgba(10, 126, 196, 0.75);
+  transform: translateY(-2px);
+}
+.hero-badges .badge-kernel {
+  border-color: #ffd76a;
+  color: #ffd76a !important;
+  background: rgba(255, 215, 106, 0.12);
+}
+.hero-badges .badge-kernel:hover {
+  background: rgba(255, 215, 106, 0.28);
+  box-shadow: 0 0 18px rgba(255, 215, 106, 0.75);
+  transform: translateY(-2px);
+}
+
+/* 导航栏标题：终端绿点 + 等宽 */
+.intro-nav-title > a {
+  font-family: 'SourceCodePro', Consolas, monospace;
+}
+.intro-nav-title > a::before {
+  content: "";
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.45rem;
+  border-radius: 50%;
+  background: var(--term-green);
+  box-shadow: 0 0 8px var(--term-green);
+  animation: term-pulse 2s ease-in-out infinite;
+}
+@keyframes term-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* 社交图标：霓虹悬浮 */
+.intro-social > a:hover {
+  border-color: var(--term-green);
+  color: var(--term-green);
+  box-shadow: 0 0 14px rgba(74, 246, 38, 0.6);
+}
+
+/* 侧栏资料卡：签名与标签 */
+.profile-signature {
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: #d7f7d4;
+  margin-top: 0.35rem;
+}
+.profile-status {
+  margin-top: 0.8rem;
+}
+.profile-status .chip {
+  display: inline-block;
+  margin: 0.18rem 0.3rem 0.18rem 0;
+  padding: 0.18rem 0.62rem;
+  font-size: 0.74rem;
+  font-family: 'SourceCodePro', Consolas, monospace;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 1rem;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(4px);
+}
+
+/* 文章卡片：悬浮微动效 */
+.recent-post-item {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border-radius: 6px;
+}
+.recent-post-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(10, 30, 50, 0.12);
+}
+
+/* 页脚标签行 */
+.footer-tagline {
+  font-family: 'SourceCodePro', Consolas, monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+  color: #9be8ff;
+  margin: 0 0 0.6rem;
+}
+.footer-tagline .sep {
+  margin: 0 0.5rem;
+  color: #4af626;
+}
+
+/* About 页：正文排版 */
+#page .article-container {
+  max-width: 760px;
+  margin: 0 auto;
+  line-height: 1.8;
+  color: #333;
+}
+#page .article-container h2 {
+  margin-top: 2rem;
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--term-cyan);
+}
+
+/* About 页：终端卡片 */
+.term-card {
+  margin: 1.5rem auto;
+  max-width: 640px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0d1117;
+  border: 1px solid rgba(74, 246, 38, 0.25);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  font-family: 'SourceCodePro', Consolas, monospace;
+}
+.term-card-bar {
+  display: flex;
+  align-items: center;
+  padding: 0.55rem 0.9rem;
+  background: #161b22;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.term-card-bar .dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  margin-right: 0.45rem;
+}
+.term-card-bar .dot-r { background: #ff5f56; }
+.term-card-bar .dot-y { background: #ffbd2e; }
+.term-card-bar .dot-g { background: #27c93f; }
+.term-card-bar .term-card-title {
+  margin-left: 0.6rem;
+  color: #8b949e;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+}
+.term-card-body {
+  margin: 0;
+  padding: 1.1rem 1.2rem;
+  color: #c9d1d9;
+  font-size: 0.88rem;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.term-card-body .c-green { color: var(--term-green); }
+.term-card-body .c-cyan  { color: var(--term-cyan); }
+.term-card-body .c-blue  { color: var(--ustc-blue-soft); }
+.term-card-body .c-dim   { color: #8b949e; }
+
+/* About 页：ASCII 企鹅 */
+.ascii-tux {
+  text-align: center;
+  font-family: 'SourceCodePro', Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.3;
+  color: var(--term-green);
+  text-shadow: 0 0 8px rgba(74, 246, 38, 0.4);
+  margin: 1rem 0 1.5rem;
+}
+.ascii-tux pre {
+  display: inline-block;
+  text-align: left;
+  margin: 0 auto;
+}
+
+/* 滚动条：绿青渐变霓虹 */
+::-webkit-scrollbar-thumb {
+  background-color: #2ac3ff;
+  background-image: linear-gradient(180deg, #2ac3ff, #4af626);
+}
+
+/* 移动端适配 */
+@media screen and (max-width: 768px) {
+  #cxo-intro > h1.site-title {
+    font-size: 1.7rem;
+  }
+  .hero-badges .badge {
+    font-size: 0.72rem;
+    padding: 0.32rem 0.75rem;
+    margin: 0.25rem 0.3rem;
+  }
+  .term-card {
+    max-width: 100%;
+  }
+}
