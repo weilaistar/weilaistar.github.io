@@ -13,8 +13,8 @@
 
     var phrases = [
       'whoami  →  a Linux & Kernel learner @ USTC 🐧',
-      'echo "红专并进 · 理实交融" —— USTC 校训',
-      'uname -sr  →  Linux · the kernel I love',
+      '"红专并进 · 理实交融" —— USTC 校训',
+      'Linux · the kernel I love',
       'cat ~/interests  →  device drivers · cache · memory',
       'gcc -O2 -o future life.c  &&  ./future',
       'Welcome to my blog, enjoy the journey!'
