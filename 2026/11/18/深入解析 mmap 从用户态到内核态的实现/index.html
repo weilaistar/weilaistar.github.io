@@ -1,0 +1,243 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"><meta name="author" content="weilaistar"><meta name="renderer" content="webkit"><meta name="copyright" content="weilaistar"><meta name="keywords" content="Weilaistar's Blog"><meta name="description" content="中科大（USTC）学生 weilaistar 的个人博客，专注 Linux 内核、设备驱动与嵌入式底层开发。"><meta name="Cache-Control" content="no-cache"><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"><title>深入解析 mmap：从用户态到内核态的实现 · Weilaistar's Blog</title><link rel="stylesheet" href="/css/style.css?v=2018.7.9"><link rel="stylesheet" href="/css/animation.css?v=2018.7.9"><link rel="stylesheet" href="/css/custom.css"><link rel="icon" href="/img/assets/favicon.ico"><link rel="stylesheet" href="https://cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.min.css?version=1.5.6"><!-- scripts--><script>(function( w ){
+  "use strict";
+  // rel=preload support test
+  if( !w.loadCSS ){
+    w.loadCSS = function(){};
+  }
+  // define on the loadCSS obj
+  var rp = loadCSS.relpreload = {};
+  // rel=preload feature support test
+  // runs once and returns a function for compat purposes
+  rp.support = (function(){
+    var ret;
+    try {
+      ret = w.document.createElement( "link" ).relList.supports( "preload" );
+    } catch (e) {
+      ret = false;
+    }
+    return function(){
+      return ret;
+    };
+  })();
+
+  // if preload isn't supported, get an asynchronous load by using a non-matching media attribute
+  // then change that media back to its intended value on load
+  rp.bindMediaToggle = function( link ){
+    // remember existing media attr for ultimate state, or default to 'all'
+    var finalMedia = link.media || "all";
+
+    function enableStylesheet(){
+      link.media = finalMedia;
+    }
+
+    // bind load handlers to enable media
+    if( link.addEventListener ){
+      link.addEventListener( "load", enableStylesheet );
+    } else if( link.attachEvent ){
+      link.attachEvent( "onload", enableStylesheet );
+    }
+
+    // Set rel and non-applicable media type to start an async request
+    // note: timeout allows this to happen async to let rendering continue in IE
+    setTimeout(function(){
+      link.rel = "stylesheet";
+      link.media = "only x";
+    });
+    // also enable media after 3 seconds,
+    // which will catch very old browsers (android 2.x, old firefox) that don't support onload on link
+    setTimeout( enableStylesheet, 3000 );
+  };
+
+  // loop through link elements in DOM
+  rp.poly = function(){
+    // double check this to prevent external calls from running
+    if( rp.support() ){
+      return;
+    }
+    var links = w.document.getElementsByTagName( "link" );
+    for( var i = 0; i < links.length; i++ ){
+      var link = links[ i ];
+      // qualify links to those with rel=preload and as=style attrs
+      if( link.rel === "preload" && link.getAttribute( "as" ) === "style" && !link.getAttribute( "data-loadcss" ) ){
+        // prevent rerunning on link
+        link.setAttribute( "data-loadcss", true );
+        // bind listeners to toggle media back
+        rp.bindMediaToggle( link );
+      }
+    }
+  };
+
+  // if unsupported, run the polyfill
+  if( !rp.support() ){
+    // run once at least
+    rp.poly();
+
+    // rerun poly on an interval until onload
+    var run = w.setInterval( rp.poly, 500 );
+    if( w.addEventListener ){
+      w.addEventListener( "load", function(){
+        rp.poly();
+        w.clearInterval( run );
+      } );
+    } else if( w.attachEvent ){
+      w.attachEvent( "onload", function(){
+        rp.poly();
+        w.clearInterval( run );
+      } );
+    }
+  }
+
+
+  // commonjs
+  if( typeof exports !== "undefined" ){
+    exports.loadCSS = loadCSS;
+  }
+  else {
+    w.loadCSS = loadCSS;
+  }
+}( typeof global !== "undefined" ? global : this ) );</script><script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js" defer></script><script src="/js/main.js?v=2018.7.9" defer></script><script src="/js/custom.js" defer></script><!-- fancybox--><link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.2.5/jquery.fancybox.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'"><script src="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.2.5/jquery.fancybox.min.js" defer></script><!-- busuanzi--><script async src="//dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script><meta name="generator" content="Hexo 8.1.1"></head><body><section class="profile-close" id="cxo-profile"><div class="profile-avatar"><i class="fa fa-caret-left"></i><img src="/img/OIP.png"></div><!--.profile-saying
+  i.fa.fa-comment
+  .saying--><div class="cxo-profile-inner"><div class="profile-name">weilaistar</div><div class="profile-signature">Linux & Kernel learner @ USTC 🐧</div><div class="profile-status"><span class="chip">🐧 Linux</span><span class="chip">🎓 USTC</span><span class="chip">⚙️ Kernel</span></div><div class="read-progress"></div></div></section><header id="cxo-intro" style="height: 70vh;background-image: url(/img/intro/index-bg.png);"><canvas id="bg-fx" aria-hidden="true"></canvas><nav id="cxo-intro-nav"><section><div class="intro-nav-title"><a>Weilaistar's Blog</a></div><div class="intro-nav-label-box"><a href="/">首页</a><a href="/about/">关于</a><a href="/archives/">归档</a><a href="/tags/">标签</a></div><i class="fa fa-bars intro-nav-menu"><div class="intro-nav-drop"><a href="/">首页</a><a href="/about/">关于</a><a href="/archives/">归档</a><a href="/tags/">标签</a></div></i><div class="clear"></div></section></nav><h1 class="post-title">深入解析 mmap：从用户态到内核态的实现</h1><div class="post-intros"><div class="post-intro-meta"><span class="post-intro-time"><i class="post-intro-calendar fa fa-calendar"></i><span>2026-11-18</span></span><span class="post-intro-tags"><a class="intro-tag fa fa-tag" href="javascript:void(0)" date-tags="Linux"> Linux</a><a class="intro-tag fa fa-tag" href="javascript:void(0)" date-tags="内存管理"> 内存管理</a><a class="intro-tag fa fa-tag" href="javascript:void(0)" date-tags="内存映射"> 内存映射</a></span></div></div></header><article class="cxo-up" id="cxo-content-outer"><section id="cxo-content-inner"><article class="article-entry" id="post"><span id="more"></span>
+
+<p>在<a href="/2025/12/01/Linux%E4%B8%AD%E5%86%85%E5%AD%98%E6%98%A0%E5%B0%84%E4%B8%8E%E8%A7%A3%E6%98%A0%E5%B0%84%E5%87%BD%E6%95%B0/">上一篇文章</a>中，我们介绍了 <code>mmap()/munmap()</code> 与 <code>ioremap()</code> 等函数的基本用途和参数含义。但 <code>mmap()</code> 只是冰山一角——一次 <code>mmap()</code> 调用，从用户态的 glibc 封装出发，究竟是如何穿过系统调用、在内核里分配虚拟地址、创建 VMA、直到真正访问时才建立物理页映射的？</p>
+<p>本文将沿着这条调用链路，把 mmap 从用户态到内核态的具体实现完整梳理一遍。</p>
+<h2 id="一、用户态：mmap-的调用入口"><a href="#一、用户态：mmap-的调用入口" class="headerlink" title="一、用户态：mmap 的调用入口"></a>一、用户态：mmap 的调用入口</h2><p>在用户态，我们调用的是 glibc 提供的 <code>mmap()</code> 包装函数：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> *<span class="title function_">mmap</span><span class="params">(<span class="type">void</span> *addr, <span class="type">size_t</span> length, <span class="type">int</span> prot, <span class="type">int</span> flags, <span class="type">int</span> fd, <span class="type">off_t</span> offset)</span>;</span><br></pre></td></tr></table></figure>
+
+<p>它本质上是对 <code>mmap</code> 系统调用的封装。在 x86_64 平台上，最终通过一条 <code>syscall</code> 指令陷入内核（32 位平台由于 <code>offset</code> 只有 32 位，历史上一度使用 <code>mmap2</code> 并把偏移量以页为单位传入）。glibc 只是把这些参数原样传给内核，所以真正的逻辑都在内核里完成。</p>
+<blockquote>
+<p><code>mmap</code> 是极少数「先分配虚拟内存、后按需建立物理映射」的系统调用，它几乎不做任何实体的内存拷贝，这正是它能实现零拷贝与高效文件映射的根源。</p>
+</blockquote>
+<h2 id="二、系统调用进入内核：ksys-mmap-pgoff"><a href="#二、系统调用进入内核：ksys-mmap-pgoff" class="headerlink" title="二、系统调用进入内核：ksys_mmap_pgoff"></a>二、系统调用进入内核：ksys_mmap_pgoff</h2><p>内核侧对应的入口是 <code>SYSCALL_DEFINE6(mmap, ...)</code>，位于 <code>mm/mmap.c</code>。它把 <code>offset</code> 右移 <code>PAGE_SHIFT</code> 换算成页号（pgoff）后，交给核心函数 <code>ksys_mmap_pgoff()</code>：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">SYSCALL_DEFINE6(mmap, <span class="type">unsigned</span> <span class="type">long</span>, addr, <span class="type">unsigned</span> <span class="type">long</span>, len,</span><br><span class="line">                <span class="type">unsigned</span> <span class="type">long</span>, prot, <span class="type">unsigned</span> <span class="type">long</span>, flags,</span><br><span class="line">                <span class="type">unsigned</span> <span class="type">long</span>, fd, <span class="type">unsigned</span> <span class="type">long</span>, off)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">return</span> ksys_mmap_pgoff(addr, len, prot, flags, fd, off &gt;&gt; PAGE_SHIFT);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>ksys_mmap_pgoff()</code> 主要完成三件事：</p>
+<ol>
+<li><strong>参数校验</strong>：检查映射长度是否合法（例如长度不能超过 <code>TASK_SIZE</code>、是否溢出），<code>MAP_FIXED</code> 时地址是否对齐等。</li>
+<li><strong>把 prot&#x2F;flags 翻译成 vm_flags</strong>：通过 <code>calc_vm_prot_bits()</code> 把 <code>PROT_READ/PROT_WRITE/PROT_EXEC</code> 转成 <code>VM_READ/VM_WRITE/VM_EXEC</code>，通过 <code>calc_vm_flag_bits()</code> 把 <code>MAP_SHARED/MAP_PRIVATE/MAP_ANONYMOUS/MAP_LOCKED</code> 等转成对应的 <code>VM_*</code> 标志位。</li>
+<li><strong>取得文件对象</strong>：如果不是匿名映射，则用 <code>fget(fd)</code> 拿到 <code>struct file *</code>，随后调用 <code>vm_mmap_pgoff()</code>，最后 <code>fput()</code> 释放引用。</li>
+</ol>
+<p><code>vm_mmap_pgoff()</code>（<code>mm/util.c</code>）做的事也很简单：先对当前进程的 <code>mm_struct</code> 加写锁（<code>mmap_write_lock(mm)</code>），再调用真正的核心 <code>do_mmap()</code>，返回前解锁。</p>
+<h2 id="三、核心：do-mmap-分配虚拟地址与创建-VMA"><a href="#三、核心：do-mmap-分配虚拟地址与创建-VMA" class="headerlink" title="三、核心：do_mmap 分配虚拟地址与创建 VMA"></a>三、核心：do_mmap 分配虚拟地址与创建 VMA</h2><p><code>do_mmap()</code>（<code>mm/mmap.c</code>）是 mmap 实现的心脏，可以概括为「先找地址，再挂 VMA」。</p>
+<h3 id="1-寻找空闲虚拟地址：get-unmapped-area"><a href="#1-寻找空闲虚拟地址：get-unmapped-area" class="headerlink" title="1. 寻找空闲虚拟地址：get_unmapped_area"></a>1. 寻找空闲虚拟地址：get_unmapped_area</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">addr = get_unmapped_area(file, addr, len, pgoff, flags);</span><br></pre></td></tr></table></figure>
+
+<p>如果调用者没指定地址（<code>addr == NULL</code> 且未设 <code>MAP_FIXED</code>），内核需要为这段映射挑一块合适的区间。它会调用体系结构相关的 <code>arch_get_unmapped_area_topdown()</code>，从 <code>mmap_base</code> 开始向下搜索空闲区间——这也是 ASLR（地址空间布局随机化）的体现：<code>mmap_base</code> 在每次进程启动时都带有随机偏移，使得不同进程、甚至同一进程多次运行时的 mmap 地址都不同。</p>
+<p>若指定了 <code>MAP_FIXED</code>，则直接使用调用者给出的地址（可能覆盖已有映射，需谨慎使用）。</p>
+<h3 id="2-创建并挂接-VMA：mmap-region"><a href="#2-创建并挂接-VMA：mmap-region" class="headerlink" title="2. 创建并挂接 VMA：mmap_region"></a>2. 创建并挂接 VMA：mmap_region</h3><p>找到地址后，进入 <code>mmap_region()</code>：</p>
+<ul>
+<li>调用 <code>vm_area_alloc()</code> 分配一个 <code>struct vm_area_struct</code>（VMA），并填充 <code>vm_start</code>、<code>vm_end</code>、<code>vm_pgoff</code>、<code>vm_page_prot</code>、<code>vm_flags</code> 等字段；</li>
+<li>如果是文件映射，执行 <code>call_mmap()</code>，即调用 <code>file-&gt;f_op-&gt;mmap(file, vma)</code>，让文件系统或驱动来「认领」这个 VMA（见第四节）；</li>
+<li>尝试与相邻的 VMA 合并（<code>vma_merge()</code>），合并失败则通过 <code>vma_link()</code> 把新 VMA 插入进程地址空间的管理结构——内核 6.1 起使用 maple tree（<code>mm-&gt;mm_mt</code>），更早版本使用红黑树（<code>mm-&gt;mm_rb</code>）加双向链表；</li>
+<li>递增 <code>mm-&gt;map_count</code>，并更新映射总页数 <code>vm_total_pages</code>。</li>
+</ul>
+<h3 id="3-vm-area-struct：一段虚拟地址的「户口本」"><a href="#3-vm-area-struct：一段虚拟地址的「户口本」" class="headerlink" title="3. vm_area_struct：一段虚拟地址的「户口本」"></a>3. vm_area_struct：一段虚拟地址的「户口本」</h3><p>VMA 描述的是<strong>一段连续的虚拟地址区间</strong>及其属性，关键字段如下：</p>
+<table>
+<thead>
+<tr>
+<th align="left">字段</th>
+<th align="left">含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><code>vm_start</code> &#x2F; <code>vm_end</code></td>
+<td align="left">区间的起始 &#x2F; 结束虚拟地址</td>
+</tr>
+<tr>
+<td align="left"><code>vm_flags</code></td>
+<td align="left">访问权限与属性（<code>VM_READ</code>、<code>VM_WRITE</code>、<code>VM_SHARED</code>、<code>VM_IO</code> 等）</td>
+</tr>
+<tr>
+<td align="left"><code>vm_file</code></td>
+<td align="left">关联的文件（匿名映射为 NULL）</td>
+</tr>
+<tr>
+<td align="left"><code>vm_pgoff</code></td>
+<td align="left">映射在文件中的起始页偏移</td>
+</tr>
+<tr>
+<td align="left"><code>vm_page_prot</code></td>
+<td align="left">页表项的保护与缓存属性（cacheable &#x2F; bufferable 等）</td>
+</tr>
+<tr>
+<td align="left"><code>vm_ops</code></td>
+<td align="left">指向 <code>struct vm_operations_struct</code> 的操作回调表</td>
+</tr>
+<tr>
+<td align="left"><code>vm_private_data</code></td>
+<td align="left">驱动 &#x2F; 文件系统的私有数据</td>
+</tr>
+</tbody></table>
+<p><strong>关键点</strong>：到这一步为止，内核只建立了「虚拟地址 → VMA」的登记关系，<strong>页表项（PTE）还没有建立</strong>，也没有真正分配物理页。这就是所谓的<strong>按需分配（Demand Paging）&#x2F; 惰性分配</strong>——真正的物理页要等到进程第一次访问这段地址、触发缺页异常时才分配。</p>
+<h2 id="四、文件映射的挂接：f-op-mmap"><a href="#四、文件映射的挂接：f-op-mmap" class="headerlink" title="四、文件映射的挂接：f_op-&gt;mmap"></a>四、文件映射的挂接：f_op-&gt;mmap</h2><p><code>do_mmap</code> 里调用的 <code>file-&gt;f_op-&gt;mmap()</code> 决定了这段映射后续的行为。按文件类型不同，主要有两条路径：</p>
+<h3 id="1-普通文件：generic-file-mmap"><a href="#1-普通文件：generic-file-mmap" class="headerlink" title="1. 普通文件：generic_file_mmap"></a>1. 普通文件：generic_file_mmap</h3><p>对 ext4 这类普通文件系统，<code>f_op-&gt;mmap</code> 通常指向 <code>generic_file_mmap()</code>（或文件系统自定义后仍落到它），它做的事非常轻量：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vma-&gt;vm_ops = &amp;generic_file_vm_ops;</span><br></pre></td></tr></table></figure>
+
+<p>其中 <code>generic_file_vm_ops</code> 的 <code>.fault</code> 指向 <code>filemap_fault()</code>。也就是说，普通文件映射同样<strong>不在这里建立页表</strong>，而是把这个责任推迟到缺页处理阶段，由 <code>filemap_fault()</code> 从 page cache 里取页。</p>
+<h3 id="2-设备驱动：remap-pfn-range"><a href="#2-设备驱动：remap-pfn-range" class="headerlink" title="2. 设备驱动：remap_pfn_range"></a>2. 设备驱动：remap_pfn_range</h3><p>对字符设备等驱动，<code>f_op-&gt;mmap</code> 通常会在自己的 mmap 实现里直接调用 <code>remap_pfn_range()</code>：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">remap_pfn_range</span><span class="params">(<span class="keyword">struct</span> vm_area_struct *vma, <span class="type">unsigned</span> <span class="type">long</span> addr,</span></span><br><span class="line"><span class="params">                    <span class="type">unsigned</span> <span class="type">long</span> pfn, <span class="type">unsigned</span> <span class="type">long</span> size, <span class="type">pgprot_t</span> prot)</span>;</span><br></pre></td></tr></table></figure>
+
+<p>它会做两件与普通文件不同的事：</p>
+<ul>
+<li>给 VMA 打上 <code>VM_IO | VM_PFNMAP</code> 标志，表示这段区域是 I&#x2F;O 内存、且<strong>没有对应的 <code>struct page</code></strong>（不能参与 swap，也不能被 <code>get_user_pages()</code> 正常对待）；</li>
+<li><strong>立刻</strong>用给定的物理页号（pfn）和 <code>pgprot</code> 属性建立 PTE。驱动往往还会用 <code>pgprot_noncached()</code> 等把这段设备内存设为不可缓存，这正对应了<a href="/2026/11/16/Linux%20%E5%86%85%E6%A0%B8%E4%B8%8E%E5%BA%95%E5%B1%82%E5%BC%80%E5%8F%91%E2%80%94%E5%85%A8%E9%9D%A2%E8%A7%A3%E6%9E%90%20Cache%20%E8%AF%BB%E5%86%99%E6%9C%BA%E5%88%B6%E4%B8%8E%20Write%20Buffer%20%E7%9A%84%E5%AE%89%E5%85%A8%E9%99%B7%E9%98%B1/">之前关于 Cache 读写机制的文章</a>里讲到的 I&#x2F;O 寄存器必须 Non-cacheable 的原则。</li>
+</ul>
+<p>因此，设备映射是「立即建好页表」，而普通文件 &#x2F; 匿名映射是「先欠着，等缺页」。</p>
+<h2 id="五、缺页中断：页表与物理页的真正建立"><a href="#五、缺页中断：页表与物理页的真正建立" class="headerlink" title="五、缺页中断：页表与物理页的真正建立"></a>五、缺页中断：页表与物理页的真正建立</h2><p>mmap 返回用户态后，进程拿到一个虚拟地址，但此时访问它会发生什么？答案是<strong>缺页异常（Page Fault）</strong>。</p>
+<h3 id="完整链路"><a href="#完整链路" class="headerlink" title="完整链路"></a>完整链路</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">访问映射地址（读 / 写）</span><br><span class="line">        |  MMU 遍历页表，发现 PTE 不存在或无权限</span><br><span class="line">        v</span><br><span class="line">   硬件缺页异常 -&gt; do_page_fault / do_user_addr_fault</span><br><span class="line">        |</span><br><span class="line">        v</span><br><span class="line">   handle_mm_fault(vma, addr, ...)      // mm/memory.c</span><br><span class="line">        |  依据 vma-&gt;vm_flags 与 vma-&gt;vm_ops 分派</span><br><span class="line">        v</span><br><span class="line">   handle_pte_fault()</span><br><span class="line">        |-- do_anonymous_page()   // 匿名映射：分配物理页 / 零页</span><br><span class="line">        |-- do_fault()            // 文件映射：从 page cache 取页</span><br><span class="line">        |-- do_swap_page()        // 换入被 swap 出去的页</span><br><span class="line">        `-- do_wp_page()          // 写时复制（COW）</span><br></pre></td></tr></table></figure>
+
+<p>内核先通过 <code>find_vma()</code> 依据地址定位到对应的 VMA，再进入 <code>handle_mm_fault()</code>。</p>
+<h3 id="1-匿名映射：do-anonymous-page"><a href="#1-匿名映射：do-anonymous-page" class="headerlink" title="1. 匿名映射：do_anonymous_page"></a>1. 匿名映射：do_anonymous_page</h3><p>对于 <code>MAP_ANONYMOUS</code> 且尚未写过页的情况，内核常常映射到<strong>全局零页（zero page）</strong>；一旦要写，<code>do_anonymous_page()</code> 会调用伙伴系统分配一个物理页，并用 <code>set_pte_at()</code> 把这个页写进对应 PTE，同时建立反向映射（rmap）以便回收。</p>
+<h3 id="2-文件映射：do-fault-→-filemap-fault"><a href="#2-文件映射：do-fault-→-filemap-fault" class="headerlink" title="2. 文件映射：do_fault → filemap_fault"></a>2. 文件映射：do_fault → filemap_fault</h3><p>对于文件映射，<code>do_fault()</code> 会根据是读还是写、是否私有进一步分派到 <code>do_read_fault()</code>、<code>do_shared_fault()</code> 或 <code>do_cow_fault()</code>，最终都会调用 <code>vma-&gt;vm_ops-&gt;fault()</code>，也就是第四节挂好的 <code>filemap_fault()</code>：</p>
+<ol>
+<li>在 <code>mapping-&gt;i_pages</code>（page cache 的 xarray &#x2F; 基数树）里按 <code>pgoff</code> 查找目标页；</li>
+<li>若命中且 <code>PageUptodate</code>，直接复用该页；</li>
+<li>若未命中，则通过 <code>mapping-&gt;a_ops-&gt;read_folio()</code>（或预读路径）向块设备发起 I&#x2F;O，把文件内容读入 page cache，并等待页变为 up-to-date；</li>
+<li>把页填充到 <code>vmf-&gt;page</code>，返回给 <code>do_fault()</code>，后者在 <code>finish_fault()</code> → <code>alloc_set_pte()</code> 中调用 <code>set_pte_at()</code> 建立 PTE。</li>
+</ol>
+<p>此后，用户态进程对这段地址的访问就由 MMU 通过页表直接命中物理页，不再经过系统调用——这正是 mmap 高效的原因。</p>
+<h3 id="3-写时复制：do-wp-page"><a href="#3-写时复制：do-wp-page" class="headerlink" title="3. 写时复制：do_wp_page"></a>3. 写时复制：do_wp_page</h3><p>当 <code>MAP_PRIVATE</code> 的私有映射（或 <code>fork()</code> 出的子进程）首次对共享的只读页进行写操作时，会触发写保护缺页，进入 <code>do_wp_page()</code>：</p>
+<ul>
+<li>若该物理页的引用计数为 1，则直接改为可写，去掉写保护；</li>
+<li>否则调用 <code>wp_page_copy()</code> 分配一个新物理页，把原页内容复制过去，再让新页表项指向新页并置为可写。</li>
+</ul>
+<p>这就是经典的 COW（Copy-On-Write）机制——<code>MAP_SHARED</code> 与 <code>MAP_PRIVATE</code> 的差异也由此产生：</p>
+<table>
+<thead>
+<tr>
+<th align="left"></th>
+<th align="left">MAP_SHARED</th>
+<th align="left">MAP_PRIVATE</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">与文件的可见性</td>
+<td align="left">修改会写回文件，其他映射 &#x2F; 进程可见</td>
+<td align="left">修改只对自己可见，不写回文件</td>
+</tr>
+<tr>
+<td align="left">底层机制</td>
+<td align="left">直接操作 page cache 中的同一物理页</td>
+<td align="left">首次写时触发 COW，复制出私有页</td>
+</tr>
+<tr>
+<td align="left">fork 后的表现</td>
+<td align="left">父子进程共享同一物理页</td>
+<td align="left">父子先共享只读页，写时各自复制</td>
+</tr>
+</tbody></table>
+<h2 id="六、munmap：解映射与资源回收"><a href="#六、munmap：解映射与资源回收" class="headerlink" title="六、munmap：解映射与资源回收"></a>六、munmap：解映射与资源回收</h2><p><code>munmap()</code> 是 mmap 的逆过程，入口为 <code>vm_munmap()</code> → <code>do_munmap()</code>，核心在 <code>unmap_region()</code>：</p>
+<ol>
+<li><strong>遍历并清除页表</strong>：<code>unmap_vmas()</code> → <code>unmap_page_range()</code> → <code>zap_pte_range()</code>，对区间内每个 PTE 执行 <code>ptep_get_and_clear()</code>，使地址失效；</li>
+<li><strong>回收物理页</strong>：对每个被摘除的页执行 <code>page_remove_rmap()</code> 解除反向映射，并 <code>put_page()</code> 递减引用计数，引用计数归零时才真正归还给伙伴系统（普通文件的页通常还会留在 page cache 中供下次访问）；</li>
+<li><strong>释放页表与 VMA</strong>：若整级页表已空则逐级释放（<code>free_pgtables()</code>），并调用 <code>remove_vma_list()</code> 把 VMA 从 maple tree &#x2F; 红黑树和链表中摘除；</li>
+<li><strong>刷新 TLB</strong>：最后通过 <code>tlb_finish_mmu()</code> 冲刷对应的 TLB 项，保证 MMU 不再缓存已失效的地址翻译。</li>
+</ol>
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p>把整条链路串起来看：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">mmap()                      用户态 glibc 封装</span><br><span class="line">  `-&gt; syscall(SYS_mmap)</span><br><span class="line">ksys_mmap_pgoff()           参数校验 / 生成 vm_flags / fget(file)</span><br><span class="line">  `-&gt; vm_mmap_pgoff()       mmap_write_lock(mm)</span><br><span class="line">       `-&gt; do_mmap()</span><br><span class="line">            |-- get_unmapped_area()   找空闲虚拟地址（ASLR）</span><br><span class="line">            `-- mmap_region()         创建 VMA -&gt; f_op-&gt;mmap()</span><br><span class="line">                 |-- 普通文件: vm_ops-&gt;fault = filemap_fault</span><br><span class="line">                 `-- 设备驱动: remap_pfn_range() 立即建 PTE</span><br><span class="line">（返回用户态，PTE 尚未建立）</span><br><span class="line"></span><br><span class="line">第一次访问 -&gt; 缺页异常</span><br><span class="line">  `-&gt; handle_mm_fault() -&gt; handle_pte_fault()</span><br><span class="line">       |-- do_anonymous_page()   匿名页</span><br><span class="line">       |-- do_fault()            文件页（filemap_fault + page cache）</span><br><span class="line">       `-- do_wp_page()          COW</span><br><span class="line">  `-&gt; set_pte_at() 建立 PTE -&gt; 返回用户态</span><br></pre></td></tr></table></figure>
+
+<p>理解这条链路后，很多看似「玄学」的现象都能得到解释：为什么 mmap 映射大文件很快（惰性 + page cache 复用）、为什么设备 mmap 需要 <code>remap_pfn_range</code> 并关缓存（见 Cache 属性原则）、为什么 <code>MAP_PRIVATE</code> 修改不影响文件（COW）。</p>
+<p>mmap 的实现本质上是<strong>虚拟地址、VMA、页表、物理页四者之间的编排</strong>：VMA 负责「登记」一段虚拟地址的归属与属性，页表负责「翻译」，而物理页则在真正需要时才被拉进来。这套「先登记、后兑现」的惰性设计，正是 Linux 内存管理高效且优雅的核心所在。</p>
+<blockquote>
+<p>后续我会继续深入 <code>struct vm_area_struct</code>、反向映射（rmap）以及页回收等细节，敬请期待。</p>
+</blockquote>
+</article><!-- lincense--><div class="license-wrapper"><p> <span>Author:  </span><a href="https://weilaistar.github.io">weilaistar</a></p><p> <span>Link:  </span><a href="https://weilaistar.github.io/2026/11/18/%E6%B7%B1%E5%85%A5%E8%A7%A3%E6%9E%90%20mmap%20%E4%BB%8E%E7%94%A8%E6%88%B7%E6%80%81%E5%88%B0%E5%86%85%E6%A0%B8%E6%80%81%E7%9A%84%E5%AE%9E%E7%8E%B0/">https://weilaistar.github.io/2026/11/18/%E6%B7%B1%E5%85%A5%E8%A7%A3%E6%9E%90%20mmap%20%E4%BB%8E%E7%94%A8%E6%88%B7%E6%80%81%E5%88%B0%E5%86%85%E6%A0%B8%E6%80%81%E7%9A%84%E5%AE%9E%E7%8E%B0/</a></p><p> <span>Copyright:  </span><span>All articles in this blog are licensed under <a rel="license noopener" target="_blank" href="https://creativecommons.org/licenses/by-nc-nd/3.0">CC BY-NC-SA 3.0</a> unless stating additionally.</span></p></div><div class="post-paginator"><a class="nextSlogan" href="/2026/11/16/Linux%20%E5%86%85%E6%A0%B8%E4%B8%8E%E5%BA%95%E5%B1%82%E5%BC%80%E5%8F%91%E2%80%94%E5%85%A8%E9%9D%A2%E8%A7%A3%E6%9E%90%20Cache%20%E8%AF%BB%E5%86%99%E6%9C%BA%E5%88%B6%E4%B8%8E%20Write%20Buffer%20%E7%9A%84%E5%AE%89%E5%85%A8%E9%99%B7%E9%98%B1/" title="Cache 读写机制与 Write Buffer 的安全陷阱"><span>NextPost ></span><br><span class="nextTitle">Cache 读写机制与 Write Buffer 的安全陷阱</span></a><div class="clear"></div></div><div id="comment"></div></section></article><footer id="cxo-footer-outer"><div id="cxo-footer-inner"><p class="footer-tagline"><span>🐧 Powered by Linux</span><span class="sep"> ·</span><span>🎓 USTC · 中国科学技术大学</span><span class="sep"> ·</span><span>© 2026 weilaistar</span></p><p class="footer-container"><span>Site by </span><a target="_blank" rel="noopener" href="http://hexo.io"><span>Hexo</span></a><span> | theme </span><a target="_blank" rel="noopener" href="https://github.com/Longlongyu/hexo-theme-Cxo"><span>Cxo</span></a></p><i class="fa fa-user"> </i><span id="busuanzi_value_site_uv"></span><span> | </span><i class="fa fa-eye"> </i><span id="busuanzi_value_site_pv"></span></div></footer><!-- catelog--><div class="toc-wrapper" style="top: 70vh;"><div class="toc-catalog"><i class="fa fa-list"> </i><span>CATALOG</span></div><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E7%94%A8%E6%88%B7%E6%80%81%EF%BC%9Ammap-%E7%9A%84%E8%B0%83%E7%94%A8%E5%85%A5%E5%8F%A3"><span class="toc-number">1.</span> <span class="toc-text">一、用户态：mmap 的调用入口</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8%E8%BF%9B%E5%85%A5%E5%86%85%E6%A0%B8%EF%BC%9Aksys-mmap-pgoff"><span class="toc-number">2.</span> <span class="toc-text">二、系统调用进入内核：ksys_mmap_pgoff</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E6%A0%B8%E5%BF%83%EF%BC%9Ado-mmap-%E5%88%86%E9%85%8D%E8%99%9A%E6%8B%9F%E5%9C%B0%E5%9D%80%E4%B8%8E%E5%88%9B%E5%BB%BA-VMA"><span class="toc-number">3.</span> <span class="toc-text">三、核心：do_mmap 分配虚拟地址与创建 VMA</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E5%AF%BB%E6%89%BE%E7%A9%BA%E9%97%B2%E8%99%9A%E6%8B%9F%E5%9C%B0%E5%9D%80%EF%BC%9Aget-unmapped-area"><span class="toc-number">3.1.</span> <span class="toc-text">1. 寻找空闲虚拟地址：get_unmapped_area</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%88%9B%E5%BB%BA%E5%B9%B6%E6%8C%82%E6%8E%A5-VMA%EF%BC%9Ammap-region"><span class="toc-number">3.2.</span> <span class="toc-text">2. 创建并挂接 VMA：mmap_region</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-vm-area-struct%EF%BC%9A%E4%B8%80%E6%AE%B5%E8%99%9A%E6%8B%9F%E5%9C%B0%E5%9D%80%E7%9A%84%E3%80%8C%E6%88%B7%E5%8F%A3%E6%9C%AC%E3%80%8D"><span class="toc-number">3.3.</span> <span class="toc-text">3. vm_area_struct：一段虚拟地址的「户口本」</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E6%96%87%E4%BB%B6%E6%98%A0%E5%B0%84%E7%9A%84%E6%8C%82%E6%8E%A5%EF%BC%9Af-op-mmap"><span class="toc-number">4.</span> <span class="toc-text">四、文件映射的挂接：f_op-&gt;mmap</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E6%99%AE%E9%80%9A%E6%96%87%E4%BB%B6%EF%BC%9Ageneric-file-mmap"><span class="toc-number">4.1.</span> <span class="toc-text">1. 普通文件：generic_file_mmap</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%EF%BC%9Aremap-pfn-range"><span class="toc-number">4.2.</span> <span class="toc-text">2. 设备驱动：remap_pfn_range</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E7%BC%BA%E9%A1%B5%E4%B8%AD%E6%96%AD%EF%BC%9A%E9%A1%B5%E8%A1%A8%E4%B8%8E%E7%89%A9%E7%90%86%E9%A1%B5%E7%9A%84%E7%9C%9F%E6%AD%A3%E5%BB%BA%E7%AB%8B"><span class="toc-number">5.</span> <span class="toc-text">五、缺页中断：页表与物理页的真正建立</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AE%8C%E6%95%B4%E9%93%BE%E8%B7%AF"><span class="toc-number">5.1.</span> <span class="toc-text">完整链路</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E5%8C%BF%E5%90%8D%E6%98%A0%E5%B0%84%EF%BC%9Ado-anonymous-page"><span class="toc-number">5.2.</span> <span class="toc-text">1. 匿名映射：do_anonymous_page</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E6%96%87%E4%BB%B6%E6%98%A0%E5%B0%84%EF%BC%9Ado-fault-%E2%86%92-filemap-fault"><span class="toc-number">5.3.</span> <span class="toc-text">2. 文件映射：do_fault → filemap_fault</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%86%99%E6%97%B6%E5%A4%8D%E5%88%B6%EF%BC%9Ado-wp-page"><span class="toc-number">5.4.</span> <span class="toc-text">3. 写时复制：do_wp_page</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81munmap%EF%BC%9A%E8%A7%A3%E6%98%A0%E5%B0%84%E4%B8%8E%E8%B5%84%E6%BA%90%E5%9B%9E%E6%94%B6"><span class="toc-number">6.</span> <span class="toc-text">六、munmap：解映射与资源回收</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-number">7.</span> <span class="toc-text">七、总结</span></a></li></ol></div><!-- top--><i class="fa fa-arrow-up close" id="go-up" aria-hidden="true"></i></body></html>
